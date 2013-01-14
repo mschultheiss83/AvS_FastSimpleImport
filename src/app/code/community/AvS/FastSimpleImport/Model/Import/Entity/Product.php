@@ -163,10 +163,24 @@ class AvS_FastSimpleImport_Model_Import_Entity_Product extends Mage_ImportExport
                 && strpos($rowData['_media_image'], 'http') === 0
                 && strpos($rowData['_media_image'], '://') !== false
             ) {
-                if (!is_file($this->_getUploader()->getTmpDir() . DS . basename($rowData['_media_image']))) {
+                $filename = basename($rowData['_media_image']);
+                if (!is_file($this->_getUploader()->getTmpDir() . DS . $filename)) {
                     $this->_copyExternalImageFile($rowData['_media_image']);
                 }
-                $this->_getSource()->setValue('_media_image', basename($rowData['_media_image']));
+
+                echo $this->_getUploader()->getDestDir();
+                echo $this->_getUploader()->getDispretionPath($filename);
+                echo DS;
+                echo $filename;
+
+                $filename = basename($rowData['_media_image']);
+                if (! $this->getAllowRenameFiles() && is_file($this->_getUploader()->getDestDir()
+                    .$this->_getUploader()->getDispretionPath($filename).DS.$filename)
+                ) {
+                    $this->_getSource()->setValue('_media_image', basename($rowData['_media_image']));
+                } else {
+                    $this->_getSource()->setValue('_media_image', basename($rowData['_media_image']));
+                }
             }
             $this->_getSource()->next();
         }
