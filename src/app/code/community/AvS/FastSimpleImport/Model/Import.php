@@ -15,6 +15,8 @@
  * @method boolean getPartialIndexing()
  * @method AvS_FastSimpleImport_Model_Import setContinueAfterErrors(boolean $value)
  * @method boolean getContinueAfterErrors()
+ * @method AvS_FastSimpleImport_Model_Import setAllowRenameFiles(boolean $value)
+ * @method boolean getAllowRenameFiles()
  * @method array getDropdownAttributes()
  */
 class AvS_FastSimpleImport_Model_Import extends Mage_ImportExport_Model_Import
@@ -25,6 +27,7 @@ class AvS_FastSimpleImport_Model_Import extends Mage_ImportExport_Model_Import
         $this->setPartialIndexing(false);
         $this->setContinueAfterErrors(false);
         $this->setDropdownAttributes(array());
+        $this->setAllowRenameFiles(true);
     }
 
     /**
@@ -46,6 +49,7 @@ class AvS_FastSimpleImport_Model_Import extends Mage_ImportExport_Model_Import
         $entityAdapter = Mage::getModel('fastsimpleimport/import_entity_product');
         $entityAdapter->setBehavior($this->getBehavior());
         $entityAdapter->setDropdownAttributes($this->getDropdownAttributes());
+        $entityAdapter->setAllowRenameFiles($this->getAllowRenameFiles());
         $this->setEntityAdapter($entityAdapter);
 
         $validationResult = $this->validateSource($data);
