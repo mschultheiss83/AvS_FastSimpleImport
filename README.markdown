@@ -156,3 +156,9 @@ try {
     print_r($import->getErrorMessages());
 }
 ```
+
+* **NEW:** Import categories option:
+
+```php
+$import->setIgnoreDuplicates(true); //if a row is encountered more than once it will be ignored and wont throw an error
+```

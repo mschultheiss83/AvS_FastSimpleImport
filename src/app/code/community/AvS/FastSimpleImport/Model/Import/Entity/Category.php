@@ -196,6 +196,20 @@ class AvS_FastSimpleImport_Model_Import_Entity_Category extends Mage_ImportExpor
      */
     protected $_fileUploader;
 
+    /** @var bool */
+    protected $_ignoreDuplicates = false;
+
+    public function setIgnoreDuplicates($ignore)
+    {
+        $this->_ignoreDuplicates = (boolean) $ignore;
+    }
+
+
+    public function getIgnoreDuplicates()
+    {
+        return $this->_ignoreDuplicates;
+    }
+
     /**
      * Constructor.
      *
@@ -766,7 +780,10 @@ class AvS_FastSimpleImport_Model_Import_Entity_Category extends Mage_ImportExpor
         if (isset($rowData[self::COL_ROOT])
             && isset($rowData[self::COL_CATEGORY])
             && isset($this->_newCategory[$rowData[self::COL_ROOT]][$rowData[self::COL_CATEGORY]])) {
-            $this->addRowError(self::ERROR_DUPLICATE_CATEGORY, $rowNum);
+            if (! $this->getIgnoreDuplicates()) {
+                $this->addRowError(self::ERROR_DUPLICATE_CATEGORY, $rowNum);
+            }
+
             return false;
         }
         $rowScope = $this->getRowScope($rowData);
