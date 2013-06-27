@@ -413,7 +413,7 @@ class AvS_FastSimpleImport_Model_Import_Entity_Category extends Mage_ImportExpor
 
         if (self::SCOPE_DEFAULT == $this->getRowScope($rowData)) {
             $rowData['name'] = $this->_getCategoryName($rowData);
-            if (! $rowData['position']) $rowData['position'] = 10000;
+            if (!isset($rowData['position'])) $rowData['position'] = 10000;
         }
 
         return $rowData;
@@ -989,7 +989,8 @@ class AvS_FastSimpleImport_Model_Import_Entity_Category extends Mage_ImportExpor
         }
     }
 
-    public function updateChildrenCount() {
+    public function updateChildrenCount() 
+    {
         //we only need to update the children count when we are updating, not when we are deleting.
         if (! in_array($this->getBehavior(), array(Mage_ImportExport_Model_Import::BEHAVIOR_REPLACE, Mage_ImportExport_Model_Import::BEHAVIOR_APPEND))) {
             return;
@@ -997,17 +998,12 @@ class AvS_FastSimpleImport_Model_Import_Entity_Category extends Mage_ImportExpor
 
         /** @var Varien_Db_Adapter_Pdo_Mysql $connection */
         $connection = $this->_connection;
-
-        $connection->query("CREATE TEMPORARY TABLE catalog_category_entity_tmp LIKE catalog_category_entity;
-            INSERT INTO catalog_category_entity_tmp SELECT * FROM catalog_category_entity;
-            UPDATE catalog_category_entity cce
-            SET children_count =
-            (
-                SELECT count(cce2.entity_id) - 1 as children_county
-                FROM catalog_category_entity_tmp cce2
-                WHERE PATH LIKE CONCAT(cce.path,'%')
-            );
-        ");
+        $prefix = Mage::getConfig()->getTablePrefix();
+        $connection->query("DROP TABLE IF EXISTS `" . $prefix . "catalog_category_entity_tmp`");
+        $connection->query("CREATE TABLE `" . $prefix . "catalog_category_entity_tmp` LIKE `" . $prefix . "catalog_category_entity`");
+        $connection->query("INSERT INTO `" . $prefix . "catalog_category_entity_tmp` SELECT * FROM `" . $prefix . "catalog_category_entity`");
+        $connection->query("UPDATE `" . $prefix . "catalog_category_entity` cce SET children_count = (SELECT count(entity_id)-1 FROM `" . $prefix . "catalog_category_entity_tmp` WHERE PATH LIKE CONCAT(cce.path,'%'));");
+        $connection->query("DROP TABLE `" . $prefix . "catalog_category_entity_tmp`");
     }
 
     protected function _indexDeleteEvents() {
