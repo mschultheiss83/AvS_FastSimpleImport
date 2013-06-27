@@ -9,6 +9,9 @@ ImportExport exists since Magento 1.5 CE / 1.10 EE, image import since 1.6 CE / 
 
 Call it like this:
 ```php
+//get media Attribute
+$mediaAttributeId = Mage::getSingleton('catalog/product')->getResource()->getAttribute('media_gallery')->getAttributeId();
+            
 // Import product:
 $data = array(
     array(
@@ -25,6 +28,12 @@ $data = array(
         'visibility' => 4,
         'tax_class_id' => 2,
         'qty' => 76,
+        '_media_image' =>'http://www.example.com/example.jpg',
+        'manufacturer'=>'yourmanufacturer',
+        '_media_lable' =>'yourlabel',
+        '_media_position' =>'1',
+        '_media_is_disabled' =>'0',
+        '_media_attribute_id' => $mediaAttributeId
     ),
     // add more products here
 );
