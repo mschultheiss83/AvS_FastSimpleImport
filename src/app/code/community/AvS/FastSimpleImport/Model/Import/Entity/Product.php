@@ -167,6 +167,9 @@ class AvS_FastSimpleImport_Model_Import_Entity_Product extends Mage_ImportExport
                     $this->_copyExternalImageFile($rowData['_media_image']);
                 }
                 $this->_getSource()->setValue('_media_image', basename($rowData['_media_image']));
+                $this->_getSource()->setValue('image', basename($rowData['_media_image']));
+                $this->_getSource()->setValue('thumbnail', basename($rowData['_media_image']));
+                $this->_getSource()->setValue('small_image', basename($rowData['_media_image']));
             }
             $this->_getSource()->next();
         }
@@ -592,5 +595,23 @@ class AvS_FastSimpleImport_Model_Import_Entity_Product extends Mage_ImportExport
             }
         }
         return $this;
+    }
+    
+     /**
+     * Uploading files into the "catalog/product" media folder.
+     * Return a new file name if the same file is already exists.
+     *
+     * @param string $fileName
+     * @return string
+     */
+    protected function _uploadMediaFiles($fileName)
+    {
+        try {
+            $res = $this->_getUploader()->move($fileName);
+            return $res['file'];
+        } catch (Exception $e) {
+            Mage::logException($e);
+            return '';
+        }
     }
 }
