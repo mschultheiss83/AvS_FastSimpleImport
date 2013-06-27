@@ -16,7 +16,7 @@ class AvS_FastSimpleImport_Model_Import_Entity_Product_Type_Grouped
      * @param array $rowData
      * @return array
      */
-    public function prepareAttributesForSave(array $rowData)
+    public function prepareAttributesForSave(array $rowData, $withDefaultValue = true)
     {
         $resultAttrs = array();
 
