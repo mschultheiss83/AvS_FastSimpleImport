@@ -167,6 +167,9 @@ class AvS_FastSimpleImport_Model_Import_Entity_Product extends Mage_ImportExport
                     $this->_copyExternalImageFile($rowData['_media_image']);
                 }
                 $this->_getSource()->setValue('_media_image', basename($rowData['_media_image']));
+                $this->_getSource()->setValue('image', basename($rowData['_media_image']));
+                $this->_getSource()->setValue('thumbnail', basename($rowData['_media_image']));
+                $this->_getSource()->setValue('small_image', basename($rowData['_media_image']));
             }
             $this->_getSource()->next();
         }
@@ -204,23 +207,30 @@ class AvS_FastSimpleImport_Model_Import_Entity_Product extends Mage_ImportExport
      */
     protected function _initCategories()
     {
-        $collection = Mage::getResourceModel('catalog/category_collection')->addNameToResult();
-        /* @var $collection Mage_Catalog_Model_Resource_Eav_Mysql4_Category_Collection */
-        foreach ($collection as $category) {
-            $structure = explode('/', $category->getPath());
-            $pathSize = count($structure);
-            if ($pathSize > 2) {
-                $path = array();
-                $this->_categories[implode('/', $path)] = $category->getId();
-                for ($i = 1; $i < $pathSize; $i++) {
-                    $path[] = $collection->getItemById($structure[$i])->getName();
-                }
+        $transportObject = new Varien_Object();
+        Mage::dispatchEvent( 'avs_fastsimpleimport_entity_product_init_categories', array('transport' => $transportObject) );
 
-                // additional options for category referencing: name starting from base category, or category id
-                $this->_categories[implode('/', $path)] = $category->getId();
-                array_shift($path);
-                $this->_categories[implode('/', $path)] = $category->getId();
-                $this->_categories[$category->getId()] = $category->getId();
+        if ( $transportObject->getCategories() ) {
+            $this->_categories = $transportObject->getCategories();
+        } else {
+            $collection = Mage::getResourceModel('catalog/category_collection')->addNameToResult();
+            /* @var $collection Mage_Catalog_Model_Resource_Eav_Mysql4_Category_Collection */
+            foreach ($collection as $category) {
+                $structure = explode('/', $category->getPath());
+                $pathSize = count($structure);
+                if ($pathSize > 2) {
+                    $path = array();
+                    $this->_categories[implode('/', $path)] = $category->getId();
+                    for ($i = 1; $i < $pathSize; $i++) {
+                        $path[] = $collection->getItemById($structure[$i])->getName();
+                    }
+
+                    // additional options for category referencing: name starting from base category, or category id
+                    $this->_categories[implode('/', $path)] = $category->getId();
+                    array_shift($path);
+                    $this->_categories[implode('/', $path)] = $category->getId();
+                    $this->_categories[$category->getId()] = $category->getId();
+                }
             }
         }
         return $this;
@@ -299,18 +309,41 @@ class AvS_FastSimpleImport_Model_Import_Entity_Product extends Mage_ImportExport
      */
     protected function _reindexUpdatedProducts()
     {
-        $skus = $this->_getUpdatedProductsSkus();
+        /* @var $productCollection Mage_Catalog_Model_Resource_Product_Collection */
         $productCollection = Mage::getModel('catalog/product')
             ->getCollection()
-            ->addAttributeToFilter('sku', array('in' => $skus));
+            ->addAttributeToFilter('sku', array('in' => $this->_getUpdatedProductsSkus()));
+        $entityIds = $productCollection->getColumnValues('entity_id');
 
-        foreach ($productCollection as $product) {
+        /*
+         * Generate a fake mass update event that we pass to our indexers.
+         */
+        $event = Mage::getModel('index/event');
+        $event->setNewData(array(
+            'reindex_price_product_ids' => &$entityIds, // for product_indexer_price
+            'reindex_stock_product_ids' => &$entityIds, // for indexer_stock
+            'product_ids'               => &$entityIds, // for category_indexer_product
+            'reindex_eav_product_ids'   => &$entityIds  // for product_indexer_eav
+        ));
 
-            /** @var $product Mage_Catalog_Model_Product */
-            $this->_logSaveEvent($product);
+        /*
+         * Index our product entities.
+         */
+        try {
+            Mage::getResourceSingleton('cataloginventory/indexer_stock')->catalogProductMassAction($event);
+            Mage::getResourceSingleton('catalog/product_indexer_price')->catalogProductMassAction($event);
+            Mage::getResourceSingleton('catalog/category_indexer_product')->catalogProductMassAction($event);
+            Mage::getResourceSingleton('catalog/product_indexer_eav')->catalogProductMassAction($event);
+            Mage::getResourceSingleton('catalogsearch/fulltext')->rebuildIndex(null, $entityIds);
+
+            if (Mage::getResourceSingleton('ecomdev_urlrewrite/indexer')) {
+                Mage::getResourceSingleton('ecomdev_urlrewrite/indexer')->updateProductRewrites($entityIds);
+            } else {
+                echo 'Default URL rewrites not yet implemented';
+            }
+        } catch (Exception $e) {
+            echo $e->getMessage();
         }
-
-        $this->_indexSaveEvents();
 
         return $this;
     }
@@ -334,49 +367,7 @@ class AvS_FastSimpleImport_Model_Import_Entity_Product extends Mage_ImportExport
         return $skus;
     }
 
-    /**
-     * Log save index events for product and its stock item
-     *
-     * @param Mage_Catalog_Model_Product $product
-     */
-    protected function _logSaveEvent($product)
-    {
-        /** @var $stockItem Mage_CatalogInventory_Model_Stock_Item */
-        $stockItem = Mage::getModel('cataloginventory/stock_item')->loadByProduct($product->getId());
-        $stockItem->setForceReindexRequired(true);
 
-        Mage::getSingleton('index/indexer')->logEvent(
-            $stockItem,
-            Mage_CatalogInventory_Model_Stock_Item::ENTITY,
-            Mage_Index_Model_Event::TYPE_SAVE
-        );
-
-        $product
-            ->setForceReindexRequired(true)
-            ->setIsChangedCategories(true);
-
-        Mage::getSingleton('index/indexer')->logEvent(
-            $product,
-            Mage_Catalog_Model_Product::ENTITY,
-            Mage_Index_Model_Event::TYPE_SAVE
-        );
-    }
-
-    /**
-     * Fulfill indexing for product save events
-     */
-    protected function _indexSaveEvents()
-    {
-        Mage::getSingleton('index/indexer')->indexEvents(
-            Mage_CatalogInventory_Model_Stock_Item::ENTITY,
-            Mage_Index_Model_Event::TYPE_SAVE
-        );
-
-        Mage::getSingleton('index/indexer')->indexEvents(
-            Mage_Catalog_Model_Product::ENTITY,
-            Mage_Index_Model_Event::TYPE_SAVE
-        );
-    }
 
     /**
      * Log delete index events for product
@@ -604,5 +595,23 @@ class AvS_FastSimpleImport_Model_Import_Entity_Product extends Mage_ImportExport
             }
         }
         return $this;
+    }
+    
+     /**
+     * Uploading files into the "catalog/product" media folder.
+     * Return a new file name if the same file is already exists.
+     *
+     * @param string $fileName
+     * @return string
+     */
+    protected function _uploadMediaFiles($fileName)
+    {
+        try {
+            $res = $this->_getUploader()->move($fileName);
+            return $res['file'];
+        } catch (Exception $e) {
+            Mage::logException($e);
+            return '';
+        }
     }
 }

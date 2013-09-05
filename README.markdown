@@ -9,6 +9,9 @@ ImportExport exists since Magento 1.5 CE / 1.10 EE, image import since 1.6 CE / 
 
 Call it like this:
 ```php
+//get media Attribute
+$mediaAttributeId = Mage::getSingleton('catalog/product')->getResource()->getAttribute('media_gallery')->getAttributeId();
+            
 // Import product:
 $data = array(
     array(
@@ -25,6 +28,12 @@ $data = array(
         'visibility' => 4,
         'tax_class_id' => 2,
         'qty' => 76,
+        '_media_image' =>'http://www.example.com/example.jpg',
+        'manufacturer'=>'yourmanufacturer',
+        '_media_lable' =>'yourlabel',
+        '_media_position' =>'1',
+        '_media_is_disabled' =>'0',
+        '_media_attribute_id' => $mediaAttributeId
     ),
     // add more products here
 );
@@ -70,6 +79,29 @@ You can see the [test file](https://github.com/avstudnitz/AvS_FastSimpleImport/b
 See [specifications about the expected format](http://www.integer-net.de/download/ImportExport_EN.pdf).
 
 ### Features
+
+* Check data without importing it
+
+Just replace the word "process" in the above calls with "dryrun":
+
+```php
+$importer = Mage::getSingleton('fastsimpleimport/import');
+
+$result = $importer->dryrunProductImport($data);
+
+echo ($result  ? 'Input is OK' : 'Input has Errors');
+
+echo "Messages: " . PHP_EOL;
+echo $importer->getErrorMessage();
+
+# for categories    
+Mage::getSingleton('fastsimpleimport/import')
+    ->dryrunCategoryImport($data);
+    
+# for customers
+Mage::getSingleton('fastsimpleimport/import')
+    ->dryrunCustomerImport($data);
+```
 
 * Import products and customers from php arrays (see above)
 * Bugfix for ImportExport: default values were set on updates when the attribute was not given (only when a default value was present, i.e. with visibility)
@@ -156,3 +188,14 @@ try {
     print_r($import->getErrorMessages());
 }
 ```
+
+* **NEW:** Import categories option:
+
+```php
+$import->setIgnoreDuplicates(true); //if a row is encountered more than once it will be ignored and wont throw an error
+```
+
+### Limitations / Wiki
+
+Refer to the [project wiki](https://github.com/avstudnitz/AvS_FastSimpleImport/wiki) for more information on known issues or limitations.
+

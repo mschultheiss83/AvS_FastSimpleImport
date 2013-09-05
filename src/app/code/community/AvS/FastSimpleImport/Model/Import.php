@@ -15,6 +15,10 @@
  * @method boolean getPartialIndexing()
  * @method AvS_FastSimpleImport_Model_Import setContinueAfterErrors(boolean $value)
  * @method boolean getContinueAfterErrors()
+ * @method AvS_FastSimpleImport_Model_Import setAllowRenameFiles(boolean $value)
+ * @method boolean getAllowRenameFiles()
+ * @method AvS_FastSimpleImport_Model_Import setIgnoreDuplicates(boolean $value)
+ * @method boolean getIgnoreDuplicates()
  * @method array getDropdownAttributes()
  */
 class AvS_FastSimpleImport_Model_Import extends Mage_ImportExport_Model_Import
@@ -25,6 +29,7 @@ class AvS_FastSimpleImport_Model_Import extends Mage_ImportExport_Model_Import
         $this->setPartialIndexing(false);
         $this->setContinueAfterErrors(false);
         $this->setDropdownAttributes(array());
+        $this->setAllowRenameFiles(true);
     }
 
     /**
@@ -46,6 +51,7 @@ class AvS_FastSimpleImport_Model_Import extends Mage_ImportExport_Model_Import
         $entityAdapter = Mage::getModel('fastsimpleimport/import_entity_product');
         $entityAdapter->setBehavior($this->getBehavior());
         $entityAdapter->setDropdownAttributes($this->getDropdownAttributes());
+        $entityAdapter->setAllowRenameFiles($this->getAllowRenameFiles());
         $this->setEntityAdapter($entityAdapter);
 
         $validationResult = $this->validateSource($data);
@@ -71,7 +77,6 @@ class AvS_FastSimpleImport_Model_Import extends Mage_ImportExport_Model_Import
                     $this->importSource();
                     $this->reindexImportedProducts();
                 } else {
-
                     $this->importSource();
                     $this->invalidateIndex();
                 }
@@ -79,6 +84,32 @@ class AvS_FastSimpleImport_Model_Import extends Mage_ImportExport_Model_Import
         }
 
         return $this;
+    }
+
+
+    /**
+     * Import products
+     *
+     * @param array       $data
+     * @param string|null $behavior
+     *
+     * @return AvS_FastSimpleImport_Model_Import
+     */
+    public function dryrunProductImport($data, $behavior = null)
+    {
+        if (!is_null($behavior)) {
+            $this->setBehavior($behavior);
+        }
+
+        $this->setEntity(Mage_Catalog_Model_Product::ENTITY);
+
+        /** @var $entityAdapter AvS_FastSimpleImport_Model_Import_Entity_Product */
+        $entityAdapter = Mage::getModel('fastsimpleimport/import_entity_product');
+        $entityAdapter->setBehavior($this->getBehavior());
+        $this->setEntityAdapter($entityAdapter);
+
+        $validationResult = $this->validateSource($data);
+        return $validationResult;
     }
 
     /**
@@ -111,18 +142,41 @@ class AvS_FastSimpleImport_Model_Import extends Mage_ImportExport_Model_Import
                 }
 
                 if (!$this->getContinueAfterErrors()) {
-
                     Mage::throwException($this->getErrorMessage());
                 }
             }
 
             if ($this->getProcessedRowsCount() > $this->getInvalidRowsCount()) {
-
                 $this->importSource();
             }
         }
 
         return $this;
+    }
+
+    /**
+     * Import products
+     *
+     * @param array       $data
+     * @param string|null $behavior
+     *
+     * @return AvS_FastSimpleImport_Model_Import
+     */
+    public function dryrunCustomerImport($data, $behavior = null)
+    {
+        if (!is_null($behavior)) {
+            $this->setBehavior($behavior);
+        }
+
+        $this->setEntity('customer');
+
+        /** @var $entityAdapter AvS_FastSimpleImport_Model_Import_Entity_Customer */
+        $entityAdapter = Mage::getModel('fastsimpleimport/import_entity_customer');
+        $entityAdapter->setBehavior($this->getBehavior());
+        $this->setEntityAdapter($entityAdapter);
+
+        $validationResult = $this->validateSource($data);
+        return $validationResult;
     }
 
     /**
@@ -143,6 +197,7 @@ class AvS_FastSimpleImport_Model_Import extends Mage_ImportExport_Model_Import
         /** @var $entityAdapter AvS_FastSimpleImport_Model_Import_Entity_Category */
         $entityAdapter = Mage::getModel('fastsimpleimport/import_entity_category');
         $entityAdapter->setBehavior($this->getBehavior());
+        $entityAdapter->setIgnoreDuplicates($this->getIgnoreDuplicates());
         $this->setEntityAdapter($entityAdapter);
         $validationResult = $this->validateSource($data);
         if ($this->getProcessedRowsCount() > 0) {
@@ -155,20 +210,50 @@ class AvS_FastSimpleImport_Model_Import extends Mage_ImportExport_Model_Import
                 }
 
                 if (!$this->getContinueAfterErrors()) {
-
                     Mage::throwException($this->getErrorMessage());
                 }
             }
 
             if ($this->getProcessedRowsCount() > $this->getInvalidRowsCount()) {
-
                 $this->importSource();
+
+                $this->getEntityAdapter()->updateChildrenCount();
+
+                if ($this->getPartialIndexing()) {
+                    $this->getEntityAdapter()->reindexImportedCategories();
+                } else {
+                    $this->invalidateIndex();
+                }
             }
         }
 
         return $this;
     }
 
+    /**
+     * Import products
+     *
+     * @param array       $data
+     * @param string|null $behavior
+     *
+     * @return AvS_FastSimpleImport_Model_Import
+     */
+    public function dryrunCategoryImport($data, $behavior = null)
+    {
+        if (!is_null($behavior)) {
+            $this->setBehavior($behavior);
+        }
+
+        $this->setEntity(Mage_Catalog_Model_Category::ENTITY);
+
+        /** @var $entityAdapter AvS_FastSimpleImport_Model_Import_Entity_Category */
+        $entityAdapter = Mage::getModel('fastsimpleimport/import_entity_category');
+        $entityAdapter->setBehavior($this->getBehavior());
+        $this->setEntityAdapter($entityAdapter);
+
+        $validationResult = $this->validateSource($data);
+        return $validationResult;
+    }
     /**
      * Returns source adapter object.
      *
@@ -177,7 +262,11 @@ class AvS_FastSimpleImport_Model_Import extends Mage_ImportExport_Model_Import
      */
     protected function _getSourceAdapter($sourceData)
     {
-        return Mage::getModel('fastsimpleimport/arrayAdapter', $sourceData);
+        if (is_array($sourceData)) {
+            return Mage::getModel('fastsimpleimport/arrayAdapter', $sourceData);
+        }
+
+        return parent::_getSourceAdapter($sourceData);
     }
 
     /**
