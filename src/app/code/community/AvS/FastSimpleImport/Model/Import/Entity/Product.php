@@ -5,6 +5,7 @@
  *
  * @category   AvS
  * @package    AvS_FastSimpleImport
+ * @license    http://opensource.org/licenses/osl-3.0.php Open Software Licence 3.0 (OSL-3.0)
  * @author     Andreas von Studnitz <avs@avs-webentwicklung.de>
  */
 class AvS_FastSimpleImport_Model_Import_Entity_Product extends Mage_ImportExport_Model_Import_Entity_Product
@@ -13,10 +14,16 @@ class AvS_FastSimpleImport_Model_Import_Entity_Product extends Mage_ImportExport
     protected $_dropdownAttributes = array();
 
     /** @var array */
+    protected $_multiselectAttributes = array();
+
+    /** @var array */
     protected $_attributeOptions = array();
 
     /** @var bool */
     protected $_allowRenameFiles = false;
+
+    /** @var bool */
+    protected $_isDryRun = false;
 
     public function setAllowRenameFiles($allow)
     {
@@ -78,7 +85,16 @@ class AvS_FastSimpleImport_Model_Import_Entity_Product extends Mage_ImportExport
      */
     protected function _createAttributeOptions()
     {
-        if (!sizeof($this->getDropdownAttributes())) {
+        $this->_createDropdownAttributeOptions();
+        $this->_createMultiselectAttributeOptions();
+    }
+
+    /**
+     *
+     */
+    protected function _createDropdownAttributeOptions()
+    {
+        if (!sizeof($this->getDropdownAttributes()) || $this->getIsDryRun()) {
             return;
         }
 
@@ -106,6 +122,38 @@ class AvS_FastSimpleImport_Model_Import_Entity_Product extends Mage_ImportExport
     }
 
     /**
+     *
+     */
+    protected function _createMultiselectAttributeOptions()
+    {
+        if (!sizeof($this->getMultiselectAttributes()) || $this->getIsDryRun()) {
+            return;
+        }
+
+        $this->_getSource()->rewind();
+        while ($this->_getSource()->valid()) {
+
+            $rowData = $this->_getSource()->current();
+            foreach ($this->getMultiselectAttributes() as $attribute) {
+
+                /** @var $attribute Mage_Eav_Model_Entity_Attribute */
+                $attributeCode = $attribute->getAttributeCode();
+                if (!isset($rowData[$attributeCode]) || !strlen(trim($rowData[$attributeCode]))) {
+                    continue;
+                }
+
+                $options = $this->_getAttributeOptions($attribute);
+
+                if (!in_array(trim($rowData[$attributeCode]), $options)) {
+                    $this->_createAttributeOption($attribute, trim($rowData[$attributeCode]));
+                }
+            }
+
+            $this->_getSource()->next();
+        }
+    }
+
+    /**
      * Get all options of a dropdown attribute
      *
      * @param Mage_Eav_Model_Entity_Attribute $attribute
@@ -114,6 +162,13 @@ class AvS_FastSimpleImport_Model_Import_Entity_Product extends Mage_ImportExport
     protected function _getAttributeOptions($attribute)
     {
         if (!isset($this->_attributeOptions[$attribute->getAttributeCode()])) {
+            if ($attribute->getFrontendInput() == 'select') {
+                /** @var $attributeOptions Mage_Eav_Model_Entity_Attribute_Source_Table */
+                $attributeOptions = Mage::getModel('eav/entity_attribute_source_table');
+                $attributeOptions->setAttribute($attribute);
+            } else {
+                $attributeOptions = $attribute->getSource();
+            }
 
             /** @var $attributeOptions Mage_Eav_Model_Entity_Attribute_Source_Table */
             $attributeOptions = Mage::getModel('eav/entity_attribute_source_table');
@@ -313,7 +368,7 @@ class AvS_FastSimpleImport_Model_Import_Entity_Product extends Mage_ImportExport
         $productCollection = Mage::getModel('catalog/product')
             ->getCollection()
             ->addAttributeToFilter('sku', array('in' => $this->_getUpdatedProductsSkus()));
-        $entityIds = $productCollection->getColumnValues('entity_id');
+        $entityIds = $productCollection->getAllIds();
 
         /*
          * Generate a fake mass update event that we pass to our indexers.
@@ -433,6 +488,29 @@ class AvS_FastSimpleImport_Model_Import_Entity_Product extends Mage_ImportExport
     }
 
     /**
+     * Set and Validate Attributes for which new Options should be created (multiselect only)
+     *
+     * @param array $attributeCodes
+     */
+    public function setMultiselectAttributes($attributeCodes)
+    {
+        $attributes = array();
+        foreach ($attributeCodes as $attributeCode) {
+            /** @var $attribute Mage_Eav_Model_Entity_Attribute */
+            $attribute = Mage::getSingleton('catalog/product')->getResource()->getAttribute($attributeCode);
+            if (!is_object($attribute)) {
+                Mage::throwException('Attribute ' . $attributeCode . ' not found.');
+            }
+            if ($attribute->getBackendModel() != 'eav/entity_attribute_backend_array') {
+                Mage::throwException('Attribute ' . $attributeCode . ' is no multiselect attribute.');
+            }
+            $attributes[$attributeCode] = $attribute;
+        }
+
+        $this->_multiselectAttributes = $attributes;
+    }
+
+    /**
      * Get Attributes for which options will be created
      *
      * @return array
@@ -442,6 +520,37 @@ class AvS_FastSimpleImport_Model_Import_Entity_Product extends Mage_ImportExport
         return $this->_dropdownAttributes;
     }
 
+    /**
+     * Get Attributes for which options will be created
+     *
+     * @return array
+     */
+    public function getMultiselectAttributes()
+    {
+        return $this->_multiselectAttributes;
+    }
+
+
+    /**
+     * Set a flag if the current import is a dryrun
+     *
+     * @param bool $isDryrun
+     * @return $this
+     */
+    public function setIsDryrun($isDryrun) {
+        $this->_isDryRun = (bool) $isDryrun;
+        return $this;
+    }
+
+
+    /**
+     * Set a flag if the current import is a dryrun
+     *
+     * @return bool
+     */
+    public function getIsDryRun() {
+        return $this->_isDryRun;
+    }
 
     /**
      * Check one attribute. Can be overridden in child.
@@ -468,6 +577,11 @@ class AvS_FastSimpleImport_Model_Import_Entity_Product extends Mage_ImportExport
                 break;
             case 'select':
             case 'multiselect':
+                $isAutocreate = isset($this->_dropdownAttributes[$attrCode]) || isset($this->_multiselectAttributes[$attrCode]);
+                if ($this->getIsDryRun() && ($isAutocreate)) {
+                	$valid = true; // Force validation in case of dry run with options of dropdown or multiselect which doesn't yet exist
+                    break;
+                }
                 $valid = isset($attrParams['options'][strtolower($rowData[$attrCode])]);
                 $message = 'Possible options are: ' . implode(', ', array_keys($attrParams['options']));
                 break;
@@ -613,5 +727,34 @@ class AvS_FastSimpleImport_Model_Import_Entity_Product extends Mage_ImportExport
             Mage::logException($e);
             return '';
         }
+    }
+
+    /**
+     * Returns an object for upload a media files
+     */
+    protected function _getUploader()
+    {
+        if (is_null($this->_fileUploader)) {
+            $this->_fileUploader    = new Mage_ImportExport_Model_Import_Uploader();
+
+            $this->_fileUploader->init();
+
+            $tmpDir     = Mage::getConfig()->getOptions()->getMediaDir() . '/import';
+            $destDir    = Mage::getConfig()->getOptions()->getMediaDir() . '/catalog/product';
+            if (!is_writable($destDir)) {
+                @mkdir($destDir, 0777, true);
+            }
+            // diglin - add auto creation in case folder doesn't exist
+            if (!file_exists($tmpDir)) {
+                @mkdir($tmpDir, 0777, true);
+            }
+            if (!$this->_fileUploader->setTmpDir($tmpDir)) {
+                Mage::throwException("File directory '{$tmpDir}' is not readable.");
+            }
+            if (!$this->_fileUploader->setDestDir($destDir)) {
+                Mage::throwException("File directory '{$destDir}' is not writable.");
+            }
+        }
+        return $this->_fileUploader;
     }
 }

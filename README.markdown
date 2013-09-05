@@ -38,13 +38,13 @@ $data = array(
     // add more products here
 );
 Mage::getSingleton('fastsimpleimport/import')
-    ->processProductImport($data); 
+    ->processProductImport($data);
 
 // Import customer:
 $data = array(
     array(
-		'email' => 'customer@company.com',
-		'_website' => 'base',
+        'email' => 'customer@company.com',
+        '_website' => 'base',
         'group_id' => 1,
         'firstname' => 'John',
         'lastname' => 'Doe',
@@ -59,6 +59,8 @@ $data = array(
         '_address_default_shipping_' => 0,
 	),
     array(
+        'email' => '',
+        '_website' => '',
         '_address_firstname' => 'John',
         '_address_lastname' => 'Doe',
         '_address_street' => 'Countryside 99',
@@ -94,10 +96,10 @@ echo ($result  ? 'Input is OK' : 'Input has Errors');
 echo "Messages: " . PHP_EOL;
 echo $importer->getErrorMessage();
 
-# for categories    
+# for categories
 Mage::getSingleton('fastsimpleimport/import')
     ->dryrunCategoryImport($data);
-    
+
 # for customers
 Mage::getSingleton('fastsimpleimport/import')
     ->dryrunCustomerImport($data);
@@ -130,7 +132,7 @@ Mage::getSingleton('fastsimpleimport/import')
     ->setAllowRenameFiles(false);
 ```
 
-* Create options for predefined attributes automatically.
+* Create options for predefined **DROPDOWN** attributes automatically.
 
 ```php
 Mage::getSingleton('fastsimpleimport/import')
@@ -142,6 +144,21 @@ or
 ```php
 Mage::getSingleton('fastsimpleimport/import')
     ->setDropdownAttributes(array('manufacturer', 'color'))
+    ->processProductImport($data);
+```
+
+* Create options for predefined **MULTI-SELECT** attributes automatically.
+
+```php
+Mage::getSingleton('fastsimpleimport/import')
+    ->setMultiselectAttributes('my_multi_select_attribute')
+    ->processProductImport($data);
+```
+
+or
+```php
+Mage::getSingleton('fastsimpleimport/import')
+    ->setMultiselectAttributes(array('my_multi_select_attribute_1', 'my_multi_select_attribute_2'))
     ->processProductImport($data);
 ```
 
@@ -199,3 +216,13 @@ $import->setIgnoreDuplicates(true); //if a row is encountered more than once it 
 
 Refer to the [project wiki](https://github.com/avstudnitz/AvS_FastSimpleImport/wiki) for more information on known issues or limitations.
 
+### License
+
+[OSL - Open Software Licence 3.0](http://opensource.org/licenses/osl-3.0.php)
+```
+
+* **NEW:** Import categories option:
+
+```php
+$import->setIgnoreDuplicates(true); //if a row is encountered more than once it will be ignored and wont throw an error
+```

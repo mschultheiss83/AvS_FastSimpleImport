@@ -1,35 +1,12 @@
 <?php
-/**
- * Magento
- *
- * NOTICE OF LICENSE
- *
- * This source file is subject to the Open Software License (OSL 3.0)
- * that is bundled with this package in the file LICENSE.txt.
- * It is also available through the world-wide-web at this URL:
- * http://opensource.org/licenses/osl-3.0.php
- * If you did not receive a copy of the license and are unable to
- * obtain it through the world-wide-web, please send an email
- * to license@magentocommerce.com so we can send you a copy immediately.
- *
- * DISCLAIMER
- *
- * Do not edit or add to this file if you wish to upgrade Magento to newer
- * versions in the future. If you wish to customize Magento for your
- * needs please refer to http://www.magentocommerce.com for more information.
- *
- * @category    Mage
- * @package     Mage_ImportExport
- * @copyright   Copyright (c) 2012 Magento Inc. (http://www.magentocommerce.com)
- * @license     http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
- */
 
 /**
- * Import entity customer model
+ * Entity Adapter for importing Magento Categories
  *
- * @category    Mage
- * @package     Mage_ImportExport
- * @author      Magento Core Team <core@magentocommerce.com>
+ * @category   AvS
+ * @package    AvS_FastSimpleImport
+ * @license    http://opensource.org/licenses/osl-3.0.php Open Software Licence 3.0 (OSL-3.0)
+ * @author     Andreas von Studnitz <avs@avs-webentwicklung.de>
  */
 class AvS_FastSimpleImport_Model_Import_Entity_Category extends Mage_ImportExport_Model_Import_Entity_Abstract
 {
@@ -413,7 +390,7 @@ class AvS_FastSimpleImport_Model_Import_Entity_Category extends Mage_ImportExpor
 
         if (self::SCOPE_DEFAULT == $this->getRowScope($rowData)) {
             $rowData['name'] = $this->_getCategoryName($rowData);
-            if (!isset($rowData['position'])) $rowData['position'] = 10000;
+            if (! isset($rowData['position'])) $rowData['position'] = 10000; // diglin - prevent warning message
         }
 
         return $rowData;
@@ -611,6 +588,10 @@ class AvS_FastSimpleImport_Model_Import_Entity_Category extends Mage_ImportExpor
             $destDir    = Mage::getConfig()->getOptions()->getMediaDir() . '/catalog/category';
             if (!is_writable($destDir)) {
                 @mkdir($destDir, 0777, true);
+            }
+            // diglin - add auto creation in case folder doesn't exist
+            if (!file_exists($tmpDir)) {
+                @mkdir($tmpDir, 0777, true);
             }
             if (!$this->_fileUploader->setTmpDir($tmpDir)) {
                 Mage::throwException("File directory '{$tmpDir}' is not readable.");
@@ -989,8 +970,7 @@ class AvS_FastSimpleImport_Model_Import_Entity_Category extends Mage_ImportExpor
         }
     }
 
-    public function updateChildrenCount() 
-    {
+    public function updateChildrenCount() {
         //we only need to update the children count when we are updating, not when we are deleting.
         if (! in_array($this->getBehavior(), array(Mage_ImportExport_Model_Import::BEHAVIOR_REPLACE, Mage_ImportExport_Model_Import::BEHAVIOR_APPEND))) {
             return;
