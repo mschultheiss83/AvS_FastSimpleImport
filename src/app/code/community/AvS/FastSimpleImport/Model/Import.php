@@ -51,7 +51,7 @@ class AvS_FastSimpleImport_Model_Import extends Mage_ImportExport_Model_Import
         $this->setEntity(Mage_Catalog_Model_Product::ENTITY);
 
         /** @var $entityAdapter AvS_FastSimpleImport_Model_Import_Entity_Product */
-        $entityAdapter = Mage::getModel('fastsimpleimport/import_entity_product');
+        $entityAdapter = Mage::getSingleton('fastsimpleimport/import_entity_product');
         $entityAdapter->setBehavior($this->getBehavior());
         $entityAdapter->setIsDryrun(false);
         $entityAdapter->setDropdownAttributes($this->getDropdownAttributes());
@@ -109,7 +109,7 @@ class AvS_FastSimpleImport_Model_Import extends Mage_ImportExport_Model_Import
         $this->setEntity(Mage_Catalog_Model_Product::ENTITY);
 
         /** @var $entityAdapter AvS_FastSimpleImport_Model_Import_Entity_Product */
-        $entityAdapter = Mage::getModel('fastsimpleimport/import_entity_product');
+        $entityAdapter = Mage::getSingleton('fastsimpleimport/import_entity_product');
         $entityAdapter->setBehavior($this->getBehavior());
         $entityAdapter->setIsDryRun(true);
         $entityAdapter->setDropdownAttributes($this->getDropdownAttributes());
@@ -136,7 +136,7 @@ class AvS_FastSimpleImport_Model_Import extends Mage_ImportExport_Model_Import
         $this->setEntity('customer');
 
         /** @var $entityAdapter AvS_FastSimpleImport_Model_Import_Entity_Customer */
-        $entityAdapter = Mage::getModel('fastsimpleimport/import_entity_customer');
+        $entityAdapter = Mage::getSingleton('fastsimpleimport/import_entity_customer');
         $entityAdapter->setBehavior($this->getBehavior());
         $this->setEntityAdapter($entityAdapter);
         $validationResult = $this->validateSource($data);
@@ -179,7 +179,7 @@ class AvS_FastSimpleImport_Model_Import extends Mage_ImportExport_Model_Import
         $this->setEntity('customer');
 
         /** @var $entityAdapter AvS_FastSimpleImport_Model_Import_Entity_Customer */
-        $entityAdapter = Mage::getModel('fastsimpleimport/import_entity_customer');
+        $entityAdapter = Mage::getSingleton('fastsimpleimport/import_entity_customer');
         $entityAdapter->setBehavior($this->getBehavior());
         $this->setEntityAdapter($entityAdapter);
 
@@ -203,7 +203,7 @@ class AvS_FastSimpleImport_Model_Import extends Mage_ImportExport_Model_Import
         $this->setEntity(Mage_Catalog_Model_Category::ENTITY);
 
         /** @var $entityAdapter AvS_FastSimpleImport_Model_Import_Entity_Category */
-        $entityAdapter = Mage::getModel('fastsimpleimport/import_entity_category');
+        $entityAdapter = Mage::getSingleton('fastsimpleimport/import_entity_category');
         $entityAdapter->setBehavior($this->getBehavior());
         $entityAdapter->setIgnoreDuplicates($this->getIgnoreDuplicates());
         $this->setEntityAdapter($entityAdapter);
@@ -255,7 +255,7 @@ class AvS_FastSimpleImport_Model_Import extends Mage_ImportExport_Model_Import
         $this->setEntity(Mage_Catalog_Model_Category::ENTITY);
 
         /** @var $entityAdapter AvS_FastSimpleImport_Model_Import_Entity_Category */
-        $entityAdapter = Mage::getModel('fastsimpleimport/import_entity_category');
+        $entityAdapter = Mage::getSingleton('fastsimpleimport/import_entity_category');
         $entityAdapter->setBehavior($this->getBehavior());
         $this->setEntityAdapter($entityAdapter);
 
@@ -271,7 +271,7 @@ class AvS_FastSimpleImport_Model_Import extends Mage_ImportExport_Model_Import
     protected function _getSourceAdapter($sourceData)
     {
 		if ( is_array( $sourceData ) ) {
-			return Mage::getModel( 'fastsimpleimport/arrayAdapter', $sourceData );
+			return Mage::getSingleton( 'fastsimpleimport/arrayAdapter', $sourceData );
 		}
 
 		return parent::_getSourceAdapter( $sourceData );
